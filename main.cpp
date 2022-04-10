@@ -12,7 +12,6 @@ std::mutex order_line_access;
 
 std::string dish()
 {
-    std::srand(time(NULL));
     int dish = rand() % 5;
     if (dish == 0) return "pizza";
     else if (dish == 1) return "soup";
@@ -29,14 +28,15 @@ void kitchen()
     {
         if (order_line.size() > 0)
         {
+            order_line_access.lock();
             dish = order_line[0];
             order_line.erase(order_line.begin());
-            std::srand(time(NULL));
+            order_line_access.unlock();
             std::this_thread::sleep_for(std::chrono::seconds(rand() % 11 + 5));
             release_line_access.lock();
             release_line.push_back(dish);
-            release_line_access.unlock();
             std::cout << dish << " is ready for delivery." << std::endl;
+            release_line_access.unlock();
             ++dishesCounter;
         }
     }
@@ -48,11 +48,10 @@ void order()
     std::string order;
     while (orderCounter < 10)
     {
-        std::srand(time(NULL));
         std::this_thread::sleep_for(std::chrono::seconds(rand() % 6 + 5));
         order = dish();
-        std::cout << "New order: " << order << std::endl;
         order_line_access.lock();
+        std::cout << "New order: " << order << std::endl;
         order_line.push_back(order);
         order_line_access.unlock();
         ++orderCounter;
@@ -71,14 +70,15 @@ void courier()
             release_line_access.lock();
             cookedDish = release_line[0];
             release_line.erase(release_line.begin());
-            release_line_access.unlock();
             std::cout << cookedDish << " is delivered." << std::endl;
+            release_line_access.unlock();
             ++deliverCounter;
         }
     }
 }
 
 int main() {
+    std::srand(time(NULL));
     std::thread onlineOrders (order);
     std::thread cooking (kitchen);
     std::thread delivery (courier);
